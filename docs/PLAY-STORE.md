@@ -2,7 +2,7 @@
 
 ## Current state
 
-The game, PWA, native build output, and Capacitor Android project are prepared. The local machine currently lacks Java, Android Studio, and Android SDK, so native compilation is the next toolchain gate. A Play Console account is also not yet enrolled.
+The game, PWA, native build output, and Capacitor Android project are prepared. Android Studio 2026.1.3.8, Java 21, SDK/API 36, platform tools, and build tools are installed. Gradle unit tests, lint, `assembleDebug`, and `bundleRelease` pass. The debug APK and unsigned release AAB are stored locally under `release/`. A Play Console account, Play App Signing enrollment, private upload key, physical-device checks, and signed AAB are still required.
 
 ## 1. Enrolment
 

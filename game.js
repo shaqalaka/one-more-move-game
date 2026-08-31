@@ -11,11 +11,13 @@
   const SIZE = 5
   const STORAGE_KEY = 'one-more-move.profile.v1'
   const ACTIVE_KEY = 'one-more-move.active.v1'
+  const STATE_SCHEMA = 1
+  const PUBLIC_URL = 'https://shaqalaka.github.io/one-more-move-game/'
   const TILE_SET = [N | S, E | W, N | E, E | S, S | W, W | N, N | E | S, E | S | W, S | W | N, W | N | E]
 
   const $ = selector => document.querySelector(selector)
   const elements = {
-    menu: $('#menu-screen'), game: $('#game-screen'), board: $('#board'), moves: $('#moves'), hints: $('#hints'),
+    app: $('#app'), menu: $('#menu-screen'), game: $('#game-screen'), board: $('#board'), moves: $('#moves'), hints: $('#hints'),
     score: $('#score'), energy: $('#energy-fill'), source: $('#source'), target: $('#target'), help: $('#board-help'),
     mode: $('#mode-label'), play: $('#play-button'), continue: $('#continue-button'), daily: $('#daily-button'), dailyStatus: $('#daily-status'),
     home: $('#home-button'), sound: $('#sound-button'), undo: $('#undo-button'), hint: $('#hint-button'),
@@ -29,6 +31,8 @@
   let profile = loadProfile()
   let state = null
   let audioContext = null
+  let activeModal = null
+  let modalReturnFocus = null
 
   function defaultProfile() {
     return {wins: 0, best: 0, dailyStreak: 0, lastDaily: '', dailyScores: {}, muted: false, tutorialSeen: false}
@@ -59,7 +63,11 @@
   function loadActive() {
     try {
       const saved = JSON.parse(localStorage.getItem(ACTIVE_KEY) || 'null')
-      if (!saved || saved.over || !Array.isArray(saved.tiles) || saved.tiles.length !== SIZE * SIZE || !Array.isArray(saved.path)) return null
+      if (!saved || saved.schemaVersion !== STATE_SCHEMA || saved.over || !Array.isArray(saved.tiles) || saved.tiles.length !== SIZE * SIZE || !Array.isArray(saved.path)) return null
+      const validTiles = saved.tiles.every(tile => tile && Number.isInteger(tile.mask) && tile.mask >= 0 && tile.mask <= 15 && Number.isInteger(tile.target) && tile.target >= 0 && tile.target <= 15)
+      const validNumbers = Number.isInteger(saved.moves) && Number.isInteger(saved.maxMoves) && saved.moves >= 0 && saved.maxMoves > 0 && saved.moves <= saved.maxMoves
+      if (!validTiles || !validNumbers || !['random','daily'].includes(saved.mode)) return null
+      if (saved.mode === 'daily' && !saved.challengeDate) saved.challengeDate = String(saved.seed || '').match(/^daily:(\d{4}-\d{2}-\d{2})$/)?.[1] || ''
       return saved
     } catch (_) {
       try { localStorage.removeItem(ACTIVE_KEY) } catch (_) {}
@@ -90,8 +98,8 @@
     return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`
   }
 
-  function yesterdayKey() {
-    const date = new Date()
+  function previousDateKey(key) {
+    const date = new Date(`${key}T00:00:00Z`)
     date.setUTCDate(date.getUTCDate() - 1)
     return todayKey(date)
   }
@@ -166,7 +174,7 @@
         return {mask: rotateMask(target, rotation), target, path: true}
       })
       const required = tiles.reduce((sum, tile) => sum + (tile.path ? turnsTo(tile.mask, tile.target) : 0), 0)
-      candidate = {seed, mode, path, tiles, sourceRow: path[0][0], targetRow: path[path.length - 1][0], required}
+      candidate = {schemaVersion: STATE_SCHEMA, seed, mode, challengeDate: mode === 'daily' ? String(seed).replace(/^daily:/, '') : '', path, tiles, sourceRow: path[0][0], targetRow: path[path.length - 1][0], required}
       if (required >= 6 && !tracePower(candidate).won) break
     }
     const cushion = mode === 'daily' ? 4 : 5
@@ -225,10 +233,7 @@
       button.type = 'button'
       button.className = `tile${trace.powered.has(index) ? ' powered' : ''}`
       button.dataset.index = String(index)
-      button.setAttribute('role', 'gridcell')
-      button.setAttribute('aria-rowindex', String(row + 1))
-      button.setAttribute('aria-colindex', String(col + 1))
-      button.setAttribute('aria-label', `Row ${row + 1}, column ${col + 1}. ${maskLabel(tile.mask)}. Rotate clockwise.`)
+      button.setAttribute('aria-label', `Row ${row + 1}, column ${col + 1}. ${maskLabel(tile.mask)}. ${trace.powered.has(index) ? 'Powered.' : 'Not powered.'} Rotate clockwise.`)
       button.innerHTML = tileMarkup(tile.mask)
       fragment.append(button)
     })
@@ -264,7 +269,7 @@
     closeAllModals()
     const seed = sameSeed && state ? state.seed : mode === 'daily' ? `daily:${todayKey()}` : `random:${Date.now()}:${Math.random()}`
     state = buildPuzzle(seed, mode)
-    elements.mode.textContent = mode === 'daily' ? `DAILY CIRCUIT · ${todayKey()}` : 'RANDOM CIRCUIT'
+    elements.mode.textContent = mode === 'daily' ? `DAILY CIRCUIT · ${state.challengeDate}` : 'RANDOM CIRCUIT'
     elements.help.textContent = 'Tap a tile to rotate it clockwise.'
     setScreen('game')
     renderBoard()
@@ -282,6 +287,8 @@
     sound('turn')
     vibrate(10)
     const won = renderBoard()
+    if (!won && state.moves === 3) elements.help.textContent = 'Three moves remain.'
+    if (!won && state.moves === 1) elements.help.textContent = 'One more move remains.'
     const tile = elements.board.querySelector(`[data-index="${index}"]`)
     tile?.focus({preventScroll: true})
     if (won) finish(true)
@@ -346,12 +353,12 @@
       profile.wins++
       profile.best = Math.max(profile.best, score)
       if (state.mode === 'daily') {
-        const today = todayKey()
-        if (!profile.dailyScores[today]) {
-          profile.dailyStreak = profile.lastDaily === yesterdayKey() ? profile.dailyStreak + 1 : 1
-          profile.lastDaily = today
+        const challengeDate = state.challengeDate
+        if (!profile.dailyScores[challengeDate]) {
+          profile.dailyStreak = profile.lastDaily === previousDateKey(challengeDate) ? profile.dailyStreak + 1 : 1
+          profile.lastDaily = challengeDate
         }
-        profile.dailyScores[today] = Math.max(profile.dailyScores[today] || 0, score)
+        profile.dailyScores[challengeDate] = Math.max(profile.dailyScores[challengeDate] || 0, score)
       }
       elements.resultMark.textContent = '✓'
       elements.resultMark.classList.remove('fail')
@@ -387,14 +394,34 @@
     elements.continue.hidden = !loadActive()
   }
 
-  function openModal(modal) {
-    modal.hidden = false
-    const focusable = modal.querySelector('button')
-    setTimeout(() => focusable?.focus(), 0)
+  function modalFocusables(modal) {
+    return [...modal.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), [tabindex]:not([tabindex="-1"])')]
   }
 
-  function closeModal(modal) { modal.hidden = true }
-  function closeAllModals() { document.querySelectorAll('.modal').forEach(modal => { modal.hidden = true }) }
+  function openModal(modal) {
+    if (activeModal && activeModal !== modal) activeModal.hidden = true
+    modalReturnFocus = document.activeElement
+    activeModal = modal
+    modal.hidden = false
+    elements.app.inert = true
+    setTimeout(() => modalFocusables(modal)[0]?.focus(), 0)
+  }
+
+  function closeModal(modal, restoreFocus = true) {
+    if (!modal || modal.hidden) return
+    modal.hidden = true
+    if (activeModal === modal) activeModal = null
+    elements.app.inert = false
+    if (restoreFocus && modalReturnFocus && document.contains(modalReturnFocus)) setTimeout(() => modalReturnFocus.focus(), 0)
+    modalReturnFocus = null
+  }
+
+  function closeAllModals() {
+    document.querySelectorAll('.modal').forEach(modal => { modal.hidden = true })
+    activeModal = null
+    elements.app.inert = false
+    modalReturnFocus = null
+  }
 
   function showToast(message) {
     elements.toast.textContent = message
@@ -426,9 +453,9 @@
   function shareResult() {
     if (!state) return
     const score = state.over ? elements.resultScore.textContent : currentScore()
-    const text = `I scored ${score} in One More Move${state.mode === 'daily' ? ` — Daily Circuit ${todayKey()}` : ''}. Can you connect the current?`
-    if (navigator.share) navigator.share({title: 'One More Move', text, url: location.href}).catch(() => {})
-    else if (navigator.clipboard) navigator.clipboard.writeText(`${text} ${location.href}`).then(() => showToast('Result copied'))
+    const text = `I scored ${score} in One More Move${state.mode === 'daily' ? ` — Daily Circuit ${state.challengeDate}` : ''}. Can you connect the current?`
+    if (navigator.share) navigator.share({title: 'One More Move', text, url: PUBLIC_URL}).catch(() => {})
+    else if (navigator.clipboard) navigator.clipboard.writeText(`${text} ${PUBLIC_URL}`).then(() => showToast('Result copied'))
     else showToast('Sharing is not available here')
   }
 
@@ -436,12 +463,21 @@
   elements.continue.addEventListener('click', () => {
     const saved = loadActive()
     if (!saved) { updateStats(); showToast('No saved circuit found'); return }
+    if (saved.mode === 'daily' && saved.challengeDate !== todayKey()) {
+      try { localStorage.removeItem(ACTIVE_KEY) } catch (_) {}
+      startGame('daily')
+      elements.help.textContent = 'A new UTC day began, so today’s Daily Circuit replaced the unfinished one.'
+      return
+    }
     state = saved
-    elements.mode.textContent = state.mode === 'daily' ? `DAILY CIRCUIT · ${todayKey()}` : 'RANDOM CIRCUIT'
+    elements.mode.textContent = state.mode === 'daily' ? `DAILY CIRCUIT · ${state.challengeDate}` : 'RANDOM CIRCUIT'
     elements.help.textContent = 'Circuit restored from this device.'
     setScreen('game')
     renderBoard()
-    requestAnimationFrame(() => elements.board.querySelector('.tile')?.focus({preventScroll:true}))
+    if (state.moves === 0) {
+      if (state.lastSparkUsed) finish(false)
+      else openModal(elements.lastModal)
+    } else requestAnimationFrame(() => elements.board.querySelector('.tile')?.focus({preventScroll:true}))
   })
   elements.daily.addEventListener('click', () => startGame('daily'))
   elements.home.addEventListener('click', () => { closeAllModals(); setScreen('menu'); updateStats() })
@@ -481,10 +517,26 @@
     if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE) elements.board.querySelector(`[data-index="${indexOf(nr,nc)}"]`)?.focus()
   })
   document.addEventListener('keydown', event => {
-    if (event.key === 'Escape') closeAllModals()
+    if (activeModal && event.key === 'Tab') {
+      const focusable = modalFocusables(activeModal)
+      if (!focusable.length) { event.preventDefault(); return }
+      const first = focusable[0], last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+      return
+    }
+    if (event.key === 'Escape' && activeModal) {
+      event.preventDefault()
+      if (activeModal === elements.lastModal) {
+        elements.giveUp.focus()
+        elements.help.textContent = 'Choose the Last Spark or end this run.'
+      } else closeModal(activeModal)
+      return
+    }
     if ((event.key === 'r' || event.key === 'R') && state && elements.game.classList.contains('active')) startGame(state.mode, true)
   })
 
+  /* TEST_API_START */
   if (new URLSearchParams(location.search).has('test')) {
     window.__OMM_TEST__ = Object.freeze({
       buildPuzzle,
@@ -492,6 +544,26 @@
       rotateMask,
       turnsTo,
       snapshot: () => state ? {seed: state.seed, masks: state.tiles.map(tile => tile.mask), moves: state.moves} : null,
+      prepareZeroMoveResume: () => {
+        if (!state || state.over) return false
+        const indexes = state.path.slice(0, 2).map(cell => indexOf(cell[0], cell[1]))
+        state.tiles.forEach(tile => { if (tile.path) tile.mask = tile.target })
+        indexes.forEach(index => { state.tiles[index].mask = rotateMask(state.tiles[index].target, 3) })
+        state.moves = 0
+        state.lastSparkUsed = false
+        state.history = []
+        saveActive()
+        setScreen('menu')
+        updateStats()
+        return true
+      },
+      prepareStaleDaily: () => {
+        state = buildPuzzle('daily:2000-01-01', 'daily')
+        saveActive()
+        setScreen('menu')
+        updateStats()
+        return state.challengeDate
+      },
       prepareLastSpark: () => {
         if (!state || state.over) return []
         const indexes = state.path.slice(0, 2).map(cell => indexOf(cell[0], cell[1]))
@@ -512,6 +584,7 @@
       }
     })
   }
+  /* TEST_API_END */
 
   updateStats()
   setScreen('menu')

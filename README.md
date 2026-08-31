@@ -40,7 +40,7 @@ npm run cap:sync
 npm run android:open
 ```
 
-A current Android Studio/JDK/SDK toolchain is not installed on this machine yet, so the Gradle project is generated and synchronized but an `.aab` cannot be compiled until Android Studio installs the required toolchain. See `docs/PLAY-STORE.md`.
+Android Studio 2026.1.3.8, Java 21, Android SDK/API 36, platform tools, and build tools are installed. Gradle unit tests, lint, debug compilation, and the unsigned release bundle build pass. Local artifacts are available under `release/`; Play upload still requires the publisher’s private upload key and Play App Signing enrollment. See `docs/PLAY-STORE.md`, `docs/TESTER-PACK.md`, and `store/release-checklist.md`.
 
 ## Privacy
 
