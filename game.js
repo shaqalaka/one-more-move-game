@@ -278,8 +278,16 @@
     requestAnimationFrame(() => elements.board.querySelector('.tile')?.focus({preventScroll: true}))
   }
 
+  function expireStaleDaily() {
+    if (!state || state.mode !== 'daily' || state.challengeDate === todayKey()) return false
+    try { localStorage.removeItem(ACTIVE_KEY) } catch (_) {}
+    startGame('daily')
+    elements.help.textContent = 'A new UTC day began, so today’s Daily Circuit replaced the unfinished one.'
+    return true
+  }
+
   function rotateTile(index) {
-    if (!state || state.over || state.moves <= 0) return
+    if (expireStaleDaily() || !state || state.over || state.moves <= 0) return
     state.history.push({index, mask: state.tiles[index].mask, moves: state.moves, rotations: state.rotations, lastSparkUsed: state.lastSparkUsed})
     state.tiles[index].mask = rotateMask(state.tiles[index].mask)
     state.moves--
@@ -302,7 +310,7 @@
   }
 
   function undo() {
-    if (!state?.history.length || state.over) return
+    if (expireStaleDaily() || !state?.history.length || state.over) return
     const previous = state.history.pop()
     state.tiles[previous.index].mask = previous.mask
     state.moves = previous.moves
@@ -315,7 +323,7 @@
   }
 
   function useHint() {
-    if (!state || state.hints <= 0 || state.over) return
+    if (expireStaleDaily() || !state || state.hints <= 0 || state.over) return
     const candidates = state.path.map(cell => indexOf(cell[0], cell[1])).filter(index => state.tiles[index].mask !== state.tiles[index].target)
     if (!candidates.length) {
       elements.help.textContent = 'The intended path is aligned—look for a competing connection.'
@@ -334,6 +342,7 @@
   }
 
   function takeLastMove() {
+    if (expireStaleDaily()) return
     closeModal(elements.lastModal)
     state.lastSparkUsed = true
     state.moves = 1
@@ -345,6 +354,7 @@
   }
 
   function finish(won) {
+    if (expireStaleDaily()) return
     state.over = true
     saveActive()
     closeAllModals()
@@ -398,9 +408,9 @@
     return [...modal.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), [tabindex]:not([tabindex="-1"])')]
   }
 
-  function openModal(modal) {
+  function openModal(modal, returnTarget = document.activeElement) {
     if (activeModal && activeModal !== modal) activeModal.hidden = true
-    modalReturnFocus = document.activeElement
+    modalReturnFocus = returnTarget
     activeModal = modal
     modal.hidden = false
     elements.app.inert = true
@@ -412,7 +422,8 @@
     modal.hidden = true
     if (activeModal === modal) activeModal = null
     elements.app.inert = false
-    if (restoreFocus && modalReturnFocus && document.contains(modalReturnFocus)) setTimeout(() => modalReturnFocus.focus(), 0)
+    const returnFocus = modalReturnFocus
+    if (restoreFocus && returnFocus && document.contains(returnFocus)) setTimeout(() => returnFocus.focus({preventScroll: true}), 0)
     modalReturnFocus = null
   }
 
@@ -474,10 +485,11 @@
     elements.help.textContent = 'Circuit restored from this device.'
     setScreen('game')
     renderBoard()
+    const firstTile = elements.board.querySelector('.tile')
     if (state.moves === 0) {
       if (state.lastSparkUsed) finish(false)
-      else openModal(elements.lastModal)
-    } else requestAnimationFrame(() => elements.board.querySelector('.tile')?.focus({preventScroll:true}))
+      else openModal(elements.lastModal, firstTile)
+    } else requestAnimationFrame(() => firstTile?.focus({preventScroll:true}))
   })
   elements.daily.addEventListener('click', () => startGame('daily'))
   elements.home.addEventListener('click', () => { closeAllModals(); setScreen('menu'); updateStats() })
@@ -516,6 +528,10 @@
     const [nr, nc] = targets[event.key]
     if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE) elements.board.querySelector(`[data-index="${indexOf(nr,nc)}"]`)?.focus()
   })
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && elements.game.classList.contains('active')) expireStaleDaily()
+  })
+
   document.addEventListener('keydown', event => {
     if (activeModal && event.key === 'Tab') {
       const focusable = modalFocusables(activeModal)
@@ -555,13 +571,21 @@
         saveActive()
         setScreen('menu')
         updateStats()
-        return true
+        return indexes
       },
       prepareStaleDaily: () => {
         state = buildPuzzle('daily:2000-01-01', 'daily')
         saveActive()
         setScreen('menu')
         updateStats()
+        return state.challengeDate
+      },
+      prepareOpenStaleDaily: () => {
+        state = buildPuzzle('daily:2000-01-01', 'daily')
+        elements.mode.textContent = `DAILY CIRCUIT · ${state.challengeDate}`
+        setScreen('game')
+        renderBoard()
+        saveActive()
         return state.challengeDate
       },
       prepareLastSpark: () => {

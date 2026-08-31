@@ -69,7 +69,7 @@ try {
   const dailyB = await page.evaluate(() => window.__OMM_TEST__.snapshot())
   assert(JSON.stringify(dailyA) === JSON.stringify(dailyB),'Daily puzzle must restart deterministically')
 
-  await page.evaluate(() => window.__OMM_TEST__.prepareZeroMoveResume())
+  const zeroIndexes = await page.evaluate(() => window.__OMM_TEST__.prepareZeroMoveResume())
   await page.locator('#continue-button').click()
   await page.waitForSelector('#last-move-modal:not([hidden])')
   await page.keyboard.press('Escape')
@@ -78,7 +78,10 @@ try {
   await page.locator('#continue-button').click()
   await page.waitForSelector('#last-move-modal:not([hidden])')
   assert(await page.locator('#last-move-modal').isVisible(),'Zero-move resume must reopen Last Spark after reload')
-  await page.locator('#give-up-button').click()
+  await page.locator('#last-move-button').click()
+  await page.waitForTimeout(30)
+  assert(await page.evaluate(() => document.activeElement?.classList.contains('tile')),'Recovered Last Spark must restore focus to a visible tile')
+  await page.locator(`.tile[data-index="${zeroIndexes[0]}"]`).click()
   await page.waitForSelector('#result-modal:not([hidden])')
   await page.keyboard.press('Escape')
 
@@ -88,6 +91,11 @@ try {
   const resumedDaily = await page.evaluate(() => window.__OMM_TEST__.snapshot())
   assert(!resumedDaily.seed.includes('2000-01-01'),'Stale Daily must be replaced rather than credited to today')
   assert(!(await page.locator('#mode-label').textContent()).includes('2000-01-01'),'Stale Daily date must not be displayed as current')
+
+  await page.evaluate(() => window.__OMM_TEST__.prepareOpenStaleDaily())
+  await page.locator('.tile').first().click()
+  const replacedOpenDaily = await page.evaluate(() => window.__OMM_TEST__.snapshot())
+  assert(!replacedOpenDaily.seed.includes('2000-01-01'),'An already-open Daily must expire before accepting another move')
 
   assert(remoteRequests.length === 0,`Game made unexpected remote requests: ${remoteRequests.join(', ')}`)
   assert(await page.locator('body').evaluate(el => el.scrollWidth <= el.clientWidth),'Mobile layout must not scroll horizontally')
