@@ -1,4 +1,4 @@
-const CACHE = 'one-more-move-ebcf2fd85993'
+const CACHE = 'one-more-move-07815a1304af'
 const ASSETS = ['./', './index.html', './privacy.html', './styles.css', './game.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png', './icon-maskable-192.png', './icon-maskable-512.png']
 
 self.addEventListener('install', event => {
