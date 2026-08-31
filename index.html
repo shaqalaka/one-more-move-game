@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#090b16">
+  <meta name="description" content="Rotate the grid. Connect the energy. You always have One More Move.">
+  <title>One More Move</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"><i></i><i></i><i></i></div>
+  <main class="app" id="app">
+    <header class="topbar">
+      <button class="icon-button" id="home-button" aria-label="Return to menu" title="Menu">⌂</button>
+      <div class="wordmark"><span>ONE MORE</span><strong>MOVE</strong></div>
+      <button class="icon-button" id="sound-button" aria-label="Mute sound" aria-pressed="false" title="Sound">♪</button>
+    </header>
+
+    <section class="screen menu-screen active" id="menu-screen" aria-labelledby="game-title">
+      <div class="menu-hero">
+        <p class="kicker">A tiny puzzle with a final spark</p>
+        <h1 id="game-title">ONE<br>MORE<br><em>MOVE</em></h1>
+        <p class="tagline">Rotate the grid. Connect the energy.<br>When hope runs out, take one last move.</p>
+      </div>
+
+      <div class="menu-actions">
+        <button class="primary-button" id="play-button"><span>New puzzle</span><b>→</b></button>
+        <button class="daily-button continue-button" id="continue-button" hidden>
+          <span><small>CURRENT CIRCUIT</small><strong>Continue where you stopped</strong></span><b>Resume</b>
+        </button>
+        <button class="daily-button" id="daily-button">
+          <span><small>DAILY CIRCUIT</small><strong id="daily-label">Today’s shared puzzle</strong></span>
+          <b id="daily-status">Play</b>
+        </button>
+      </div>
+
+      <div class="stats-strip" aria-label="Player statistics">
+        <div><strong id="stat-wins">0</strong><span>Solved</span></div>
+        <div><strong id="stat-streak">0</strong><span>Daily streak</span></div>
+        <div><strong id="stat-best">—</strong><span>Best score</span></div>
+      </div>
+      <div class="menu-links"><button class="quiet-button" id="how-button">How to play</button><a class="quiet-button" href="privacy.html">Privacy</a><button class="quiet-button" id="reset-button">Reset progress</button></div>
+      <p class="privacy-note">Offline-first · No account · No ads · Progress stays on this device</p>
+    </section>
+
+    <section class="screen game-screen" id="game-screen" aria-labelledby="level-title">
+      <div class="game-heading">
+        <div><p id="mode-label">RANDOM CIRCUIT</p><h2 id="level-title">Connect the current</h2></div>
+        <div class="score"><span>Score</span><strong id="score">0000</strong></div>
+      </div>
+
+      <div class="energy-card">
+        <div class="energy-copy"><span>Moves</span><strong id="moves">12</strong></div>
+        <div class="energy-track" aria-hidden="true"><i id="energy-fill"></i></div>
+        <div class="energy-copy align-right"><span>Hints</span><strong id="hints">2</strong></div>
+      </div>
+
+      <div class="board-wrap">
+        <span class="terminal source" id="source" aria-hidden="true"><i></i></span>
+        <div class="board" id="board" role="grid" aria-label="Energy circuit puzzle"></div>
+        <span class="terminal target" id="target" aria-hidden="true"><i></i></span>
+      </div>
+      <p class="board-help" id="board-help" aria-live="polite">Tap a tile to rotate it clockwise.</p>
+
+      <div class="game-actions">
+        <button class="control-button" id="undo-button" disabled><span>↶</span>Undo</button>
+        <button class="control-button hint" id="hint-button"><span>✦</span>Hint</button>
+        <button class="control-button" id="restart-button"><span>↻</span>Restart</button>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal" id="tutorial-modal" role="dialog" aria-modal="true" aria-labelledby="tutorial-title" hidden>
+    <div class="modal-card tutorial-card">
+      <button class="modal-close" data-close="tutorial-modal" aria-label="Close tutorial">×</button>
+      <p class="kicker">Three simple rules</p><h2 id="tutorial-title">Complete the circuit.</h2>
+      <div class="tutorial-grid">
+        <div><span class="mini-tile"><i class="line n"></i><i class="line e"></i></span><p><b>1. Rotate</b><br>Tap any tile. Every turn uses one move.</p></div>
+        <div><span class="mini-flow">●━━●</span><p><b>2. Connect</b><br>Every touching line must meet its neighbour.</p></div>
+        <div><span class="mini-spark">+1</span><p><b>3. Last Spark</b><br>Run out? You get exactly one more move.</p></div>
+      </div>
+      <button class="primary-button" id="tutorial-play"><span>Start playing</span><b>→</b></button>
+    </div>
+  </div>
+
+  <div class="modal" id="last-move-modal" role="dialog" aria-modal="true" aria-labelledby="last-move-title" hidden>
+    <div class="modal-card last-card">
+      <div class="pulse-orb">+1</div><p class="kicker">The circuit is fading</p>
+      <h2 id="last-move-title">One more move?</h2>
+      <p>You get one final rotation. Make it count.</p>
+      <button class="primary-button hot" id="last-move-button"><span>Take the Last Spark</span><b>+1</b></button>
+      <button class="quiet-button" id="give-up-button">End this run</button>
+    </div>
+  </div>
+
+  <div class="modal" id="result-modal" role="dialog" aria-modal="true" aria-labelledby="result-title" hidden>
+    <div class="modal-card result-card">
+      <div class="result-mark" id="result-mark">✓</div><p class="kicker" id="result-kicker">Circuit complete</p>
+      <h2 id="result-title">Beautifully connected.</h2>
+      <div class="result-score"><span>Score</span><strong id="result-score">1240</strong></div>
+      <p id="result-detail">Solved with 3 moves to spare.</p>
+      <div class="result-actions">
+        <button class="primary-button" id="next-button"><span>Next puzzle</span><b>→</b></button>
+        <button class="secondary-button" id="share-button">Share result</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="game.js"></script>
+</body>
+</html>

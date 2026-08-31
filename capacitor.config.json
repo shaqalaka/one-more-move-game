@@ -1,0 +1,9 @@
+{
+  "appId": "io.github.shaqalaka.onemoremove",
+  "appName": "One More Move",
+  "webDir": "dist/native",
+  "bundledWebRuntime": false,
+  "android": {
+    "allowMixedContent": false
+  }
+}

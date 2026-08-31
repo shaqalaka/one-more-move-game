@@ -1,0 +1,15 @@
+{
+  "name": "One More Move",
+  "short_name": "One Move",
+  "description": "Rotate the grid and connect the energy before your moves run out.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#090b16",
+  "theme_color": "#090b16",
+  "categories": ["games", "puzzle"],
+  "icons": [
+    {"src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
+  ]
+}
