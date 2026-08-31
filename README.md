@@ -51,6 +51,7 @@ The game stores progress and settings locally. Version 0.1 contains no account, 
 `npm run check` performs:
 
 - JavaScript syntax and static asset checks
+- Source/PWA/native/Android build synchronization
 - 250-seed generation invariants
 - Canonical-route solvability checks
 - Real Chromium gameplay test

@@ -49,9 +49,14 @@ try {
   assert(Number(await page.locator('#hints').textContent()) === hintsBefore-1,'Hint must consume one hint')
   assert(await page.locator('.tile.hint').count() === 1,'Hint must identify an intended-path tile')
 
-  await page.evaluate(() => window.__OMM_TEST__.solveCurrent())
+  const sparkIndexes = await page.evaluate(() => window.__OMM_TEST__.prepareLastSpark())
+  await page.locator(`.tile[data-index="${sparkIndexes[0]}"]`).click()
+  await page.waitForSelector('#last-move-modal:not([hidden])')
+  await page.locator('#last-move-button').click()
+  assert(Number(await page.locator('#moves').textContent()) === 1,'Last Spark must grant exactly one move')
+  await page.locator(`.tile[data-index="${sparkIndexes[1]}"]`).click()
   await page.waitForSelector('#result-modal:not([hidden])')
-  assert((await page.locator('#result-title').textContent()).length > 0,'Win result must have a title')
+  assert((await page.locator('#result-title').textContent()).includes('last move'),'Last Spark solution must receive clutch result')
   assert(Number(await page.locator('#result-score').textContent()) > 0,'Win must award a score')
 
   await page.keyboard.press('Escape')

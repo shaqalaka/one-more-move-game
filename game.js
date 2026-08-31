@@ -492,6 +492,17 @@
       rotateMask,
       turnsTo,
       snapshot: () => state ? {seed: state.seed, masks: state.tiles.map(tile => tile.mask), moves: state.moves} : null,
+      prepareLastSpark: () => {
+        if (!state || state.over) return []
+        const indexes = state.path.slice(0, 2).map(cell => indexOf(cell[0], cell[1]))
+        state.tiles.forEach(tile => { if (tile.path) tile.mask = tile.target })
+        indexes.forEach(index => { state.tiles[index].mask = rotateMask(state.tiles[index].target, 3) })
+        state.moves = 1
+        state.lastSparkUsed = false
+        state.history = []
+        renderBoard()
+        return indexes
+      },
       solveCurrent: () => {
         if (!state || state.over) return false
         state.tiles.forEach(tile => { if (tile.path) tile.mask = tile.target })
