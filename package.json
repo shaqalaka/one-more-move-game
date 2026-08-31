@@ -7,7 +7,7 @@
     "build": "node scripts/build.mjs",
     "build:pwa": "node scripts/build.mjs",
     "build:native": "node scripts/build.mjs",
-    "check": "node --check game.js && node tests/static-check.mjs && node tests/browser-smoke.mjs && npm audit --omit=dev",
+    "check": "npm run build && node --check game.js && node tests/static-check.mjs && node tests/build-check.mjs && node tests/browser-smoke.mjs && npm audit --omit=dev",
     "test:browser": "node tests/browser-smoke.mjs",
     "cap:sync": "npm run build:native && cap sync android",
     "android:open": "cap open android"
