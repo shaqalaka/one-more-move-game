@@ -1,4 +1,4 @@
-const CACHE = 'one-more-move-07815a1304af'
+const CACHE = 'one-more-move-5cbe5de13175'
 const ASSETS = ['./', './index.html', './privacy.html', './styles.css', './game.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png', './icon-maskable-192.png', './icon-maskable-512.png']
 
 self.addEventListener('install', event => {
@@ -19,10 +19,14 @@ self.addEventListener('fetch', event => {
   if (url.origin !== self.location.origin) return
 
   if (request.mode === 'navigate') {
-    event.respondWith(fetch(request).then(response => {
-      if (response.ok) caches.open(CACHE).then(cache => cache.put('./index.html', response.clone()))
+    const isAppShell = url.pathname.endsWith('/') || url.pathname.endsWith('/index.html')
+    event.respondWith(fetch(request).then(async response => {
+      if (response.ok && isAppShell) {
+        const cache = await caches.open(CACHE)
+        await cache.put('./index.html', response.clone())
+      }
       return response
-    }).catch(() => caches.match('./index.html')))
+    }).catch(async () => (await caches.match(request)) || caches.match('./index.html')))
     return
   }
 
