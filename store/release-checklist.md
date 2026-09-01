@@ -13,14 +13,16 @@
 - [x] Install Android Studio, Java 21, SDK/API 36, and build tools
 - [x] Run `npm install`, `npm run check`, and `npm run cap:sync`
 - [x] Compile, lint, and unit-test the debug build
-- [ ] Test debug build on emulator and real Android device
-- [ ] Increment versionCode and set versionName
+- [x] Test offline launch, accessibility tree, move persistence, and process restart on Android 16 emulator
+- [ ] Test haptics, audio, TalkBack, and touch feel on a real Android device
+- [x] Set first-release `versionCode 1` and `versionName 0.1.0`; confirm code 1 is unused before upload
 - [ ] Generate and securely back up upload keystore
 - [ ] Enrol in Play App Signing
 - [ ] Build signed release AAB
-- [ ] Record AAB SHA-256 and signing certificate fingerprint
-- [ ] Inspect merged manifest and final bundle dependencies
-- [ ] Confirm no unexpected runtime network calls
+- [x] Record unsigned AAB SHA-256 in `release/CHECKSUMS.txt`
+- [ ] Record signed AAB SHA-256 and upload certificate fingerprint
+- [x] Inspect merged manifest and remove unused Google Services/FileProvider integration
+- [x] Verify bundled game launches offline and makes no remote gameplay requests
 
 ## Store content
 
